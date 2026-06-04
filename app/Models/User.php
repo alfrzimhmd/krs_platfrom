@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role', 
     ];
 
     /**
@@ -45,5 +46,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Relasi ke tabel dosen
+     * Seorang user (dosen) memiliki satu data dosen
+     */
+    public function dosen()
+    {
+        return $this->hasOne(Dosen::class);
     }
 }
