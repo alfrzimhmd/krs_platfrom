@@ -57,29 +57,44 @@
                     @enderror
                 </div>
                 
-                <!-- Semester Saat Ini -->
+                @if(isset($krs) && $krs && $krs->status !== 'menunggu')
+                <!-- Status KRS - hanya tampil jika sudah pernah disetujui/ditolak -->
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2 text-sm">
-                        <i class="fas fa-calendar-alt text-teal-500 mr-2"></i>Semester Saat Ini
+                        <i class="fas fa-clipboard-check text-teal-500 mr-2"></i>Status KRS
                     </label>
-                    <div class="relative">
-                        <select name="semester_saat_ini" class="w-full px-4 py-3 border border-gray-200 rounded-xl appearance-none bg-white cursor-pointer focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition">
-                            <option value="Ganjil" {{ old('semester_saat_ini', $mahasiswa->semester_saat_ini) == 'Ganjil' ? 'selected' : '' }}>Semester Ganjil</option>
-                            <option value="Genap" {{ old('semester_saat_ini', $mahasiswa->semester_saat_ini) == 'Genap' ? 'selected' : '' }}>Semester Genap</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            <i class="fas fa-chevron-down text-gray-400"></i>
-                        </div>
-                    </div>
-                    @error('semester_saat_ini')
+                    <select name="status" 
+                        class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition bg-white">
+                        <option value="menunggu" {{ old('status', $krs->status) == 'menunggu' ? 'selected' : '' }}>
+                            ⏳ Menunggu
+                        </option>
+                        <option value="disetujui" {{ old('status', $krs->status) == 'disetujui' ? 'selected' : '' }}>
+                            ✅ Disetujui
+                        </option>
+                        <option value="ditolak" {{ old('status', $krs->status) == 'ditolak' ? 'selected' : '' }}>
+                            ❌ Ditolak
+                        </option>
+                    </select>
+                    @error('status')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
+                    <p class="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                        <i class="fas fa-info-circle text-blue-400"></i>
+                        Status saat ini: 
+                        <span class="font-semibold 
+                            {{ $krs->status == 'disetujui' ? 'text-emerald-600' : 'text-red-500' }}">
+                            {{ ucfirst($krs->status) }}
+                        </span>
+                        — ubah jika perlu koreksi
+                    </p>
                 </div>
+                @endif
+
             </div>
             
             <!-- Action Buttons -->
             <div class="p-6 bg-gray-50/50 flex justify-end gap-3">
-                <a href="{{ route('dosen.mahasiswa.list') }}" class="px-6 py-2.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 transition">
+                <a href="{{ route('dosen.dashboard') }}" class="px-6 py-2.5 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 transition">
                     <i class="fas fa-times mr-2"></i>Batal
                 </a>
                 <button type="submit" class="btn-primary px-6 py-2.5 rounded-xl font-semibold text-white shadow-md flex items-center gap-2">

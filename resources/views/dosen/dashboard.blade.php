@@ -340,11 +340,16 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($mahasiswas as $mahasiswa)
-                        @php $krs = $mahasiswa->krs->first(); @endphp
+                        @php 
+                            $krs = $mahasiswa->krs->first();
+                            $semType = $krs ? $krs->semester : ($mahasiswa->semester_saat_ini ?? null);
+                            $semNum  = $mahasiswa->nomor_semester ?? null;
+                            $semLabel = ($semType && $semNum) ? $semType . '/' . $semNum : ($semType ?? '-');
+                        @endphp
                         <tr class="table-row-hover" 
                             data-nama="{{ $mahasiswa->nama }}"
                             data-nim="{{ $mahasiswa->nim }}"
-                            data-semester="{{ $krs ? $krs->semester : $mahasiswa->semester_saat_ini }}"
+                            data-semester="{{ $semLabel }}"
                             data-dosen="{{ $mahasiswa->dosen->nama_dosen ?? 'Belum dipilih' }}"
                             data-status="{{ $krs ? $krs->status : 'Belum mengajukan' }}"
                             data-total-sks="{{ $krs ? $krs->total_sks : 0 }}"
@@ -359,7 +364,7 @@
                                 </div>
                             </td>
                             <td class="px-4 py-4 text-gray-600">{{ $mahasiswa->nim }}</td>
-                            <td class="px-4 py-4"><span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">{{ $krs ? $krs->semester : '-' }}</span></td>
+                            <td class="px-4 py-4"><span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium">{{ $semLabel }}</span></td>
                             <td class="px-4 py-4">
                                 @if($krs && $krs->matakuliahs->count())
                                     <div class="flex flex-wrap gap-1 max-w-xs">

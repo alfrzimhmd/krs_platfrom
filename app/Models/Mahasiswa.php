@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mahasiswa extends Model
 {
-    protected $fillable = ['nama', 'nim', 'semester_saat_ini', 'dosen_id'];
+    protected $fillable = ['nama', 'nim', 'semester_saat_ini', 'nomor_semester', 'dosen_id'];
 
     public function dosen(): BelongsTo
     {

@@ -26,6 +26,14 @@ class MahasiswaAuthController extends Controller
             'nama' => 'required|string',
             'nim' => 'required|string',
             'semester' => 'required|in:Ganjil,Genap',
+            'nomor_semester' => ['required', 'integer', 'min:1', 'max:14', function ($attribute, $value, $fail) use ($request) {
+                if ($request->semester === 'Ganjil' && $value % 2 === 0) {
+                    $fail('Semester Ganjil hanya bisa memilih nomor semester ganjil (1, 3, 5, 7, 9, 11, 13).');
+                }
+                if ($request->semester === 'Genap' && $value % 2 !== 0) {
+                    $fail('Semester Genap hanya bisa memilih nomor semester genap (2, 4, 6, 8, 10, 12, 14).');
+                }
+            }],
         ]);
 
         // Cari mahasiswa berdasarkan NIM
@@ -40,12 +48,15 @@ class MahasiswaAuthController extends Controller
             if ($mahasiswa->semester_saat_ini !== $request->semester) {
                 $mahasiswa->update(['semester_saat_ini' => $request->semester]);
             }
+            // Update nomor semester
+            $mahasiswa->update(['nomor_semester' => (int) $request->nomor_semester]);
         } else {
             // Jika belum ada, buat mahasiswa baru
             $mahasiswa = Mahasiswa::create([
                 'nama' => $request->nama,
                 'nim' => $request->nim,
                 'semester_saat_ini' => $request->semester,
+                'nomor_semester' => (int) $request->nomor_semester,
                 'dosen_id' => null,
             ]);
         }
@@ -56,6 +67,7 @@ class MahasiswaAuthController extends Controller
             'nama' => $mahasiswa->nama,
             'nim' => $mahasiswa->nim,
             'semester' => $request->semester,
+            'nomor_semester' => (int) $request->nomor_semester,
         ]);
 
         return redirect()->route('mahasiswa.dashboard')

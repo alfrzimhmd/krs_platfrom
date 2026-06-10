@@ -96,9 +96,10 @@ class DosenController extends Controller implements HasMiddleware
     {
         $user = Auth::user();
         $dosen = $user->dosen;
-        $mahasiswa = Mahasiswa::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+        $mahasiswa = Mahasiswa::with('krs')->where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+        $krs = $mahasiswa->krs->first();
         
-        return view('dosen.mahasiswa-edit', compact('mahasiswa'));
+        return view('dosen.mahasiswa-edit', compact('mahasiswa', 'krs'));
     }
 
     /**
@@ -108,21 +109,32 @@ class DosenController extends Controller implements HasMiddleware
     {
         $user = Auth::user();
         $dosen = $user->dosen;
-        $mahasiswa = Mahasiswa::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+        $mahasiswa = Mahasiswa::with('krs')->where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
+        $krs = $mahasiswa->krs->first();
         
-        $request->validate([
+        $rules = [
             'nama' => 'required|string',
             'nim' => 'required|string|unique:mahasiswas,nim,' . $id,
-            'semester_saat_ini' => 'required|in:Ganjil,Genap',
-        ]);
+        ];
+        
+        // Validasi status hanya jika KRS sudah pernah ditindak (bukan menunggu)
+        if ($krs && $krs->status !== 'menunggu') {
+            $rules['status'] = 'required|in:menunggu,disetujui,ditolak';
+        }
+        
+        $request->validate($rules);
         
         $mahasiswa->update([
             'nama' => $request->nama,
             'nim' => $request->nim,
-            'semester_saat_ini' => $request->semester_saat_ini,
         ]);
         
-        return redirect()->route('dosen.mahasiswa.list')
+        // Update status KRS jika kondisi terpenuhi
+        if ($krs && $krs->status !== 'menunggu' && $request->has('status')) {
+            $krs->update(['status' => $request->status]);
+        }
+        
+        return redirect()->route('dosen.dashboard')
             ->with('success', 'Data mahasiswa berhasil diupdate.');
     }
 
@@ -143,7 +155,7 @@ class DosenController extends Controller implements HasMiddleware
         
         $mahasiswa->delete();
         
-        return redirect()->route('dosen.mahasiswa.list')
+        return redirect()->route('dosen.dashboard')
             ->with('success', 'Mahasiswa berhasil dihapus.');
     }
 }
