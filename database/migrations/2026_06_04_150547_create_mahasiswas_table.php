@@ -12,7 +12,11 @@ return new class extends Migration
             $table->id();
             $table->string('nama');
             $table->string('nim', 15)->unique();
-            $table->enum('semester_saat_ini', ['Ganjil', 'Genap']);
+            $table->string('email')->unique();  // field baru untuk email mahasiswa 
+            $table->string('password');       // field baru untuk password mahasiswa
+            $table->string('foto_profil')->nullable(); // field baru untuk menyimpan path foto profil mahasiswa
+            $table->enum('semester_saat_ini', ['Ganjil', 'Genap'])->nullable(); // field baru untuk semester saat ini
+            $table->integer('nomor_semester')->nullable(); // field baru untuk nomor semester
             $table->foreignId('dosen_id')->nullable()->constrained('dosens')->onDelete('set null');
             $table->timestamps();
         });

@@ -8,7 +8,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Dosen extends Model
 {
-    protected $fillable = ['user_id', 'nidn', 'nama_dosen'];
+    protected $fillable = [
+        'user_id', 
+        'nidn', 
+        'nama_dosen',
+        'foto_profil'
+    ];
 
     public function user(): BelongsTo
     {

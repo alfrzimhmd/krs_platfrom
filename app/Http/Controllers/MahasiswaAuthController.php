@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Mahasiswa;
 
 class MahasiswaAuthController extends Controller
@@ -17,65 +19,87 @@ class MahasiswaAuthController extends Controller
     }
 
     /**
-     * Proses login mahasiswa
+     * Tampilkan form registrasi mahasiswa
+     */
+    public function showRegisterForm()
+    {
+        return view('mahasiswa.register');
+    }
+
+    /**
+     * Proses registrasi mahasiswa baru
+     */
+    public function register(Request $request)
+    {
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'nim' => 'required|string|max:15|unique:mahasiswas,nim',
+            'email' => 'required|email|unique:mahasiswas,email',
+            'password' => 'required|min:6|confirmed',
+            'foto_profil' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ], [
+            'nim.unique' => 'NIM :input sudah terdaftar. Silakan gunakan NIM yang berbeda.',
+            'email.unique' => 'Email :input sudah terdaftar. Silakan gunakan email yang berbeda.',
+        ]);
+
+        // Upload foto profil jika ada
+        $fotoPath = null;
+        if ($request->hasFile('foto_profil')) {
+            $fotoPath = $request->file('foto_profil')->store('foto_mahasiswa', 'public');
+        }
+
+        // Buat mahasiswa baru (dosen_id akan diisi di halaman KRS)
+        Mahasiswa::create([
+            'nama' => $request->nama,
+            'nim' => $request->nim,
+            'email' => $request->email,
+            'password' => $request->password,
+            'foto_profil' => $fotoPath,
+            'dosen_id' => null,  // <--- HAPUS ATAU SET NULL
+            'semester_saat_ini' => null,
+            'nomor_semester' => null,
+        ]);
+
+        return redirect()->route('mahasiswa.login.form')
+            ->with('success', 'Registrasi berhasil! Silakan login dengan email dan password Anda.');
+    }
+
+    /**
+     * Proses login mahasiswa (Email + Password)
      */
     public function login(Request $request)
     {
-        // Validasi input
         $request->validate([
-            'nama' => 'required|string|max:255',
-            'nim'  => 'required|string|max:50',
-            'semester' => 'required|in:Ganjil,Genap',
-            'nomor_semester' => ['required', 'integer', 'min:1', 'max:14', function ($attribute, $value, $fail) use ($request) {
-                if ($request->semester === 'Ganjil' && $value % 2 === 0) {
-                    $fail('Semester Ganjil hanya bisa memilih nomor semester ganjil (1, 3, 5, 7, 9, 11, 13).');
-                }
-                if ($request->semester === 'Genap' && $value % 2 !== 0) {
-                    $fail('Semester Genap hanya bisa memilih nomor semester genap (2, 4, 6, 8, 10, 12, 14).');
-                }
-            }],
+            'email' => 'required|email',
+            'password' => 'required|string',
         ]);
 
-        // ── Cari mahasiswa berdasarkan NIM (NIM = kunci unik) ──────────────────
-        $mahasiswaByNim = Mahasiswa::where('nim', $request->nim)->first();
+        // Cari mahasiswa berdasarkan email
+        $mahasiswa = Mahasiswa::where('email', $request->email)->first();
 
-        if ($mahasiswaByNim) {
-            // NIM sudah terdaftar — pastikan nama cocok (case-insensitive)
-            if (strtolower(trim($mahasiswaByNim->nama)) !== strtolower(trim($request->nama))) {
-                return back()
-                    ->withInput()
-                    ->withErrors([
-                        'nim' => 'NIM ' . $request->nim . ' sudah terdaftar dan tidak dapat digunakan. '
-                               . 'Jika ini NIM Anda, pastikan nama yang dimasukkan sesuai data yang sudah terdaftar.'
-                    ]);
-            }
+        if (!$mahasiswa) {
+            return back()
+                ->withInput()
+                ->withErrors(['email' => 'Email tidak terdaftar. Silakan registrasi terlebih dahulu.']);
+        }
 
-            // NIM & nama cocok → update HANYA info semester, tidak ada field lain yang berubah
-            $mahasiswaByNim->update([
-                'semester_saat_ini' => $request->semester,
-                'nomor_semester'    => (int) $request->nomor_semester,
-            ]);
-
-            $mahasiswa = $mahasiswaByNim;
-
-        } else {
-            // ── NIM belum terdaftar → buat record baru ──────────────────────────
-            $mahasiswa = Mahasiswa::create([
-                'nama'             => $request->nama,
-                'nim'              => $request->nim,
-                'semester_saat_ini'=> $request->semester,
-                'nomor_semester'   => (int) $request->nomor_semester,
-                'dosen_id'         => null,
-            ]);
+        // Verifikasi password
+        if (!Hash::check($request->password, $mahasiswa->password)) {
+            return back()
+                ->withInput()
+                ->withErrors(['password' => 'Password yang Anda masukkan salah.']);
         }
 
         // Simpan data ke session
         Session::put('mahasiswa', [
-            'id'              => $mahasiswa->id,
-            'nama'            => $mahasiswa->nama,
-            'nim'             => $mahasiswa->nim,
-            'semester'        => $request->semester,
-            'nomor_semester'  => (int) $request->nomor_semester,
+            'id' => $mahasiswa->id,
+            'nama' => $mahasiswa->nama,
+            'nim' => $mahasiswa->nim,
+            'email' => $mahasiswa->email,
+            'foto_profil' => $mahasiswa->foto_profil,
+            'dosen_id' => $mahasiswa->dosen_id,
+            'semester' => $mahasiswa->semester_saat_ini,
+            'nomor_semester' => $mahasiswa->nomor_semester,
         ]);
 
         return redirect()->route('mahasiswa.dashboard')

@@ -12,9 +12,6 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 
 class DosenController extends Controller implements HasMiddleware
 {
-    /**
-     * Get the middleware that should be assigned to the controller.
-     */
     public static function middleware(): array
     {
         return [
@@ -22,30 +19,36 @@ class DosenController extends Controller implements HasMiddleware
         ];
     }
 
-    /**
-     * Dashboard dosen - menampilkan semua mahasiswa bimbingan dan KRS mereka
-     */
     public function dashboard()
     {
         $user = Auth::user();
         $dosen = $user->dosen;
         
-        // Ambil semua mahasiswa yang memilih dosen ini sebagai PA
-        $mahasiswas = Mahasiswa::with(['krs.matakuliahs'])
+        $mahasiswas = Mahasiswa::with(['krs.matakuliahs', 'dosen'])
             ->where('dosen_id', $dosen->id)
             ->get();
         
         return view('dosen.dashboard', compact('mahasiswas', 'dosen'));
     }
 
-    /**
-     * Setujui KRS
-     */
+    public function detailKrs($id)
+    {
+        $krs = Krs::with(['mahasiswa.dosen', 'matakuliahs'])->findOrFail($id);
+        
+        $user = Auth::user();
+        $dosenId = $user->dosen->id;
+        
+        if ($krs->mahasiswa->dosen_id !== $dosenId) {
+            abort(403, 'Anda tidak berhak mengakses KRS ini.');
+        }
+        
+        return view('dosen.detail_krs', compact('krs'));
+    }
+
     public function approveKrs($id)
     {
         $krs = Krs::findOrFail($id);
         
-        // Cek apakah mahasiswa ini adalah bimbingannya
         $user = Auth::user();
         $dosenId = $user->dosen->id;
         
@@ -55,12 +58,10 @@ class DosenController extends Controller implements HasMiddleware
         
         $krs->update(['status' => 'disetujui']);
         
-        return redirect()->back()->with('success', 'KRS berhasil disetujui.');
+        return redirect()->route('dosen.dashboard')
+            ->with('success', 'KRS berhasil disetujui.');
     }
 
-    /**
-     * Tolak KRS
-     */
     public function rejectKrs($id)
     {
         $krs = Krs::findOrFail($id);
@@ -74,88 +75,35 @@ class DosenController extends Controller implements HasMiddleware
         
         $krs->update(['status' => 'ditolak']);
         
-        return redirect()->back()->with('success', 'KRS berhasil ditolak.');
+        return redirect()->route('dosen.dashboard')
+            ->with('success', 'KRS berhasil ditolak.');
     }
 
-    /**
-     * Daftar semua mahasiswa bimbingan
-     */
-    public function mahasiswaList()
-    {
-        $user = Auth::user();
-        $dosen = $user->dosen;
-        $mahasiswas = Mahasiswa::where('dosen_id', $dosen->id)->get();
-        
-        return view('dosen.mahasiswa-index', compact('mahasiswas'));
-    }
-
-    /**
-     * Form edit mahasiswa bimbingan
-     */
-    public function editMahasiswa($id)
-    {
-        $user = Auth::user();
-        $dosen = $user->dosen;
-        $mahasiswa = Mahasiswa::with('krs')->where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
-        $krs = $mahasiswa->krs->first();
-        
-        return view('dosen.mahasiswa-edit', compact('mahasiswa', 'krs'));
-    }
-
-    /**
-     * Update data mahasiswa bimbingan
-     */
     public function updateMahasiswa(Request $request, $id)
     {
         $user = Auth::user();
         $dosen = $user->dosen;
         $mahasiswa = Mahasiswa::with('krs')->where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
-        $krs = $mahasiswa->krs->first();
         
-        $rules = [
+        $request->validate([
             'nama' => 'required|string',
             'nim' => 'required|string|unique:mahasiswas,nim,' . $id,
-        ];
-        
-        // Validasi status hanya jika KRS sudah pernah ditindak (bukan menunggu)
-        if ($krs && $krs->status !== 'menunggu') {
-            $rules['status'] = 'required|in:menunggu,disetujui,ditolak';
-        }
-        
-        $request->validate($rules);
+        ]);
         
         $mahasiswa->update([
             'nama' => $request->nama,
             'nim' => $request->nim,
         ]);
         
-        // Update status KRS jika kondisi terpenuhi
-        if ($krs && $krs->status !== 'menunggu' && $request->has('status')) {
-            $krs->update(['status' => $request->status]);
+        // Jika ada update status (untuk KRS yang sudah tidak menunggu)
+        if ($request->has('status') && $request->status) {
+            $krs = $mahasiswa->krs->first();
+            if ($krs) {
+                $krs->update(['status' => $request->status]);
+            }
         }
         
-        return redirect()->route('dosen.dashboard')
+        return redirect()->route('dosen.krs.detail', $mahasiswa->krs->first()->id)
             ->with('success', 'Data mahasiswa berhasil diupdate.');
-    }
-
-    /**
-     * Hapus mahasiswa bimbingan
-     */
-    public function destroyMahasiswa($id)
-    {
-        $user = Auth::user();
-        $dosen = $user->dosen;
-        $mahasiswa = Mahasiswa::where('id', $id)->where('dosen_id', $dosen->id)->firstOrFail();
-        
-        // Hapus KRS yang terkait beserta pivot nya
-        foreach ($mahasiswa->krs as $krs) {
-            $krs->matakuliahs()->detach();
-            $krs->delete();
-        }
-        
-        $mahasiswa->delete();
-        
-        return redirect()->route('dosen.dashboard')
-            ->with('success', 'Mahasiswa berhasil dihapus.');
     }
 }

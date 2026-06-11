@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('nidn', 20)->unique();
             $table->string('nama_dosen');
+            $table->string('foto_profil')->nullable(); // field baru untuk menyimpan path foto profil dosen
             $table->timestamps();
         });
     }

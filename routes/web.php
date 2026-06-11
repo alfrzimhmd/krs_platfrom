@@ -25,30 +25,32 @@ Route::get('/', function () {
 
 // ========== ROUTE MAHASISWA ==========
 Route::prefix('mahasiswa')->name('mahasiswa.')->group(function () {
-    // Login mahasiswa (hanya untuk guest)
+    // Guest routes
     Route::middleware(['guest'])->group(function () {
         Route::get('login', [MahasiswaAuthController::class, 'showLoginForm'])->name('login.form');
         Route::post('login', [MahasiswaAuthController::class, 'login'])->name('login');
+        Route::get('register', [MahasiswaAuthController::class, 'showRegisterForm'])->name('register.form');
+        Route::post('register', [MahasiswaAuthController::class, 'register'])->name('register');
     });
     
     Route::post('logout', [MahasiswaAuthController::class, 'logout'])->name('logout');
     
-    // Route yang dilindungi middleware mahasiswa.auth
+    // Auth routes
     Route::middleware(['mahasiswa.auth'])->group(function () {
         Route::get('dashboard', [KrsController::class, 'dashboard'])->name('dashboard');
+        Route::post('update-semester', [KrsController::class, 'updateSemester'])->name('update-semester');
         Route::post('store', [KrsController::class, 'store'])->name('store');
+        Route::get('cetak-krs', [KrsController::class, 'cetakKrs'])->name('cetak-krs');
     });
 });
 
 // ========== ROUTE DOSEN ==========
 Route::middleware(['auth'])->prefix('dosen')->name('dosen.')->group(function () {
     Route::get('dashboard', [DosenController::class, 'dashboard'])->name('dashboard');
+    Route::get('krs/{id}/detail', [DosenController::class, 'detailKrs'])->name('krs.detail');
     Route::post('krs/{id}/approve', [DosenController::class, 'approveKrs'])->name('krs.approve');
     Route::post('krs/{id}/reject', [DosenController::class, 'rejectKrs'])->name('krs.reject');
-    Route::get('mahasiswa', [DosenController::class, 'mahasiswaList'])->name('mahasiswa.list');
-    Route::get('mahasiswa/{id}/edit', [DosenController::class, 'editMahasiswa'])->name('mahasiswa.edit');
     Route::put('mahasiswa/{id}', [DosenController::class, 'updateMahasiswa'])->name('mahasiswa.update');
-    Route::delete('mahasiswa/{id}', [DosenController::class, 'destroyMahasiswa'])->name('mahasiswa.destroy');
 });
 
 // ========== ROUTE MATA KULIAH ==========
