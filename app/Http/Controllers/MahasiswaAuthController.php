@@ -23,8 +23,8 @@ class MahasiswaAuthController extends Controller
     {
         // Validasi input
         $request->validate([
-            'nama' => 'required|string',
-            'nim' => 'required|string',
+            'nama' => 'required|string|max:255',
+            'nim'  => 'required|string|max:50',
             'semester' => 'required|in:Ganjil,Genap',
             'nomor_semester' => ['required', 'integer', 'min:1', 'max:14', function ($attribute, $value, $fail) use ($request) {
                 if ($request->semester === 'Ganjil' && $value % 2 === 0) {
@@ -36,38 +36,46 @@ class MahasiswaAuthController extends Controller
             }],
         ]);
 
-        // Cari mahasiswa berdasarkan NIM
-        $mahasiswa = Mahasiswa::where('nim', $request->nim)->first();
+        // ── Cari mahasiswa berdasarkan NIM (NIM = kunci unik) ──────────────────
+        $mahasiswaByNim = Mahasiswa::where('nim', $request->nim)->first();
 
-        if ($mahasiswa) {
-            // Jika mahasiswa sudah ada, update nama jika berbeda
-            if ($mahasiswa->nama !== $request->nama) {
-                $mahasiswa->update(['nama' => $request->nama]);
+        if ($mahasiswaByNim) {
+            // NIM sudah terdaftar — pastikan nama cocok (case-insensitive)
+            if (strtolower(trim($mahasiswaByNim->nama)) !== strtolower(trim($request->nama))) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'nim' => 'NIM ' . $request->nim . ' sudah terdaftar dan tidak dapat digunakan. '
+                               . 'Jika ini NIM Anda, pastikan nama yang dimasukkan sesuai data yang sudah terdaftar.'
+                    ]);
             }
-            // Update semester jika berbeda
-            if ($mahasiswa->semester_saat_ini !== $request->semester) {
-                $mahasiswa->update(['semester_saat_ini' => $request->semester]);
-            }
-            // Update nomor semester
-            $mahasiswa->update(['nomor_semester' => (int) $request->nomor_semester]);
-        } else {
-            // Jika belum ada, buat mahasiswa baru
-            $mahasiswa = Mahasiswa::create([
-                'nama' => $request->nama,
-                'nim' => $request->nim,
+
+            // NIM & nama cocok → update HANYA info semester, tidak ada field lain yang berubah
+            $mahasiswaByNim->update([
                 'semester_saat_ini' => $request->semester,
-                'nomor_semester' => (int) $request->nomor_semester,
-                'dosen_id' => null,
+                'nomor_semester'    => (int) $request->nomor_semester,
+            ]);
+
+            $mahasiswa = $mahasiswaByNim;
+
+        } else {
+            // ── NIM belum terdaftar → buat record baru ──────────────────────────
+            $mahasiswa = Mahasiswa::create([
+                'nama'             => $request->nama,
+                'nim'              => $request->nim,
+                'semester_saat_ini'=> $request->semester,
+                'nomor_semester'   => (int) $request->nomor_semester,
+                'dosen_id'         => null,
             ]);
         }
 
         // Simpan data ke session
         Session::put('mahasiswa', [
-            'id' => $mahasiswa->id,
-            'nama' => $mahasiswa->nama,
-            'nim' => $mahasiswa->nim,
-            'semester' => $request->semester,
-            'nomor_semester' => (int) $request->nomor_semester,
+            'id'              => $mahasiswa->id,
+            'nama'            => $mahasiswa->nama,
+            'nim'             => $mahasiswa->nim,
+            'semester'        => $request->semester,
+            'nomor_semester'  => (int) $request->nomor_semester,
         ]);
 
         return redirect()->route('mahasiswa.dashboard')

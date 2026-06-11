@@ -42,12 +42,13 @@
                             <i class="fas fa-id-card text-teal-500 mr-2"></i>NIM
                         </label>
                         <input type="text" name="nim" value="{{ old('nim') }}" 
-                            class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all duration-200 input-focus"
+                            class="w-full px-4 py-3 border {{ $errors->has('nim') ? 'border-red-400 bg-red-50' : 'border-gray-200' }} rounded-xl focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all duration-200 input-focus"
                             placeholder="Masukkan NIM Anda">
                         @error('nim')
-                            <p class="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                <i class="fas fa-exclamation-circle"></i> {{ $message }}
-                            </p>
+                            <div class="mt-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+                                <i class="fas fa-exclamation-triangle text-red-500 mt-0.5 flex-shrink-0"></i>
+                                <p class="text-red-600 text-xs leading-relaxed">{{ $message }}</p>
+                            </div>
                         @enderror
                     </div>
                     
