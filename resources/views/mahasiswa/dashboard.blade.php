@@ -234,8 +234,8 @@
     </div>
     @endif
 
-    <!-- Form KRS Card (hanya tampil jika tidak ada KRS yang disetujui) -->
-    @if(!$krs || $krs->status != 'disetujui')
+    <!-- Form KRS Card (hanya tampil jika belum ada KRS atau status masih menunggu) -->
+    @if(!$krs || $krs->status == 'menunggu')
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         <div class="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-white">
             <div class="flex items-center gap-3">
@@ -396,7 +396,7 @@
             </div>
         </form>
     </div>
-    @else
+    @elseif($krs && $krs->status == 'disetujui')
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         <div class="p-12 text-center">
             <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -405,6 +405,18 @@
             <h3 class="text-xl font-semibold text-gray-800 mb-2">Pengajuan KRS Telah Disetujui</h3>
             <p class="text-gray-500">Selamat! KRS Anda telah disetujui oleh dosen pembimbing akademik.</p>
             <p class="text-gray-400 text-sm mt-2">Total SKS: {{ $krs->total_sks }} SKS | Semester: {{ $krs->semester }}</p>
+        </div>
+    </div>
+    @elseif($krs && $krs->status == 'ditolak')
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        <div class="p-12 text-center">
+            <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-times-circle text-red-500 text-3xl"></i>
+            </div>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Pengajuan KRS Ditolak</h3>
+            <p class="text-gray-500">Pengajuan KRS Anda telah ditolak oleh dosen pembimbing akademik.</p>
+            <p class="text-gray-400 text-sm mt-2">Silakan hubungi dosen PA Anda untuk informasi lebih lanjut.</p>
+            <p class="text-gray-400 text-sm mt-1">Total SKS: {{ $krs->total_sks }} SKS | Semester: {{ $krs->semester }}</p>
         </div>
     </div>
     @endif

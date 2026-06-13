@@ -131,6 +131,14 @@ class KrsController extends Controller
         $mahasiswaSession = Session::get('mahasiswa');
         $mahasiswa = Mahasiswa::find($mahasiswaSession['id']);
         
+        // Guard: Cek apakah ada KRS yang sudah final (ditolak atau disetujui)
+        // Jika ada, mahasiswa tidak diizinkan mengirim atau mengubah pengajuan
+        $latestKrs = $mahasiswa->krs()->latest()->first();
+        if ($latestKrs && in_array($latestKrs->status, ['ditolak', 'disetujui'])) {
+            return redirect()->route('mahasiswa.dashboard')
+                ->with('error', 'Pengajuan KRS Anda sudah ' . $latestKrs->status . ' dan tidak dapat diubah lagi.');
+        }
+
         // Cek apakah ini update atau create baru
         $existingKrs = $mahasiswa->krs()->where('status', 'menunggu')->first();
         
