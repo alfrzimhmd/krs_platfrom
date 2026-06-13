@@ -174,9 +174,16 @@
                         <tr class="table-row-hover">
                             <td class="px-4 py-4">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
-                                        <i class="fas fa-user-graduate text-gray-500 text-sm"></i>
-                                    </div>
+                                    @if($mahasiswa->foto_profil)
+                                        <img src="{{ Storage::url($mahasiswa->foto_profil) }}"
+                                             class="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-sm thumbnail-img"
+                                             alt="Foto {{ $mahasiswa->nama }}"
+                                             onclick="openImageModal('{{ Storage::url($mahasiswa->foto_profil) }}')">
+                                    @else
+                                        <div class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                                            <i class="fas fa-user-graduate text-gray-500 text-sm"></i>
+                                        </div>
+                                    @endif
                                     <span class="font-medium text-gray-800">{{ $mahasiswa->nama }}</span>
                                 </div>
                             </td>
@@ -257,15 +264,16 @@
 <!-- Modal preview gambar -->
 <div id="imageModal" class="image-modal" onclick="closeImageModal()">
     <span class="close-modal">&times;</span>
-    <img id="modalImage" src="" alt="Preview Bukti UKT">
+    <img id="modalImage" src="" alt="Preview Gambar">
 </div>
 
 <script>
-    function openImageModal(imageUrl) {
+    function openImageModal(imageUrl, altText = 'Preview Gambar') {
         const modal = document.getElementById('imageModal');
         const modalImg = document.getElementById('modalImage');
         modal.classList.add('active');
         modalImg.src = imageUrl;
+        modalImg.alt = altText;
         document.body.style.overflow = 'hidden';
     }
     function closeImageModal() {
