@@ -50,7 +50,7 @@
                     <option value="">-- Pilih Dosen PA --</option>
                     @foreach($dosens as $dosen)
                         <option value="{{ $dosen->id }}" {{ $mahasiswa->dosen_id == $dosen->id ? 'selected' : '' }}>
-                            👨‍🏫 {{ $dosen->nama_dosen }} (NIDN: {{ $dosen->nidn }})
+                            {{ $dosen->nama_dosen }} (NIDN: {{ $dosen->nidn }})
                         </option>
                     @endforeach
                 </select>
