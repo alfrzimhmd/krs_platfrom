@@ -13,4 +13,22 @@ class Matakuliah extends Model
     {
         return $this->belongsToMany(Krs::class, 'krs_matakuliah');
     }
+
+    /**
+     * Ambil mata kuliah berdasarkan semester (Ganjil/Genap)
+     */
+    public static function getMatakuliahBySemester($semester)
+    {
+        return self::where('semester', $semester)->get();
+    }
+
+    /**
+     * Ambil mata kuliah berdasarkan nomor semester (1-14)
+     * Ganjil -> matakuliah Ganjil, Genap -> matakuliah Genap
+     */
+    public static function getMatakuliahByNomorSemester($nomorSemester)
+    {
+        $jenisSemester = ($nomorSemester % 2 == 1) ? 'Ganjil' : 'Genap';
+        return self::where('semester', $jenisSemester)->get();
+    }
 }

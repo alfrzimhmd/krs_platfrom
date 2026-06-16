@@ -52,6 +52,29 @@
         transform: scale(1.02);
         box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3);
     }
+    .nilai-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .nilai-a { background: #D1FAE5; color: #065F46; }
+    .nilai-a-minus { background: #D1FAE5; color: #065F46; }
+    .nilai-b-plus { background: #DBEAFE; color: #1E40AF; }
+    .nilai-b { background: #DBEAFE; color: #1E40AF; }
+    .nilai-b-minus { background: #FEF3C7; color: #92400E; }
+    .nilai-c-plus { background: #FEF3C7; color: #92400E; }
+    .nilai-c { background: #FEE2E2; color: #991B1B; }
+    
+    .badge-aktif {
+        background: #FEF3C7;
+        color: #D97706;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }
 </style>
 
 <div class="max-w-7xl mx-auto space-y-6">
@@ -62,7 +85,6 @@
             <p class="text-gray-500 mt-1">Kelola Kartu Rencana Studi (KRS) Anda</p>
         </div>
         <div class="flex gap-3">
-            <!-- Tombol Cetak KRS (hanya jika KRS disetujui) -->
             @if($krs && $krs->status == 'disetujui')
                 <a href="{{ route('mahasiswa.cetak-krs') }}" target="_blank" class="flex items-center gap-2 px-4 py-2 btn-cetak text-white rounded-xl font-semibold shadow-md transition">
                     <i class="fas fa-print"></i>
@@ -88,7 +110,6 @@
         </div>
         <div class="p-6">
             <div class="flex flex-col md:flex-row gap-6">
-                <!-- Foto Profil -->
                 <div class="flex-shrink-0">
                     @if($mahasiswa->foto_profil && Storage::disk('public')->exists($mahasiswa->foto_profil))
                         <img src="{{ Storage::url($mahasiswa->foto_profil) }}" class="w-28 h-28 rounded-2xl object-cover shadow-lg ring-4 ring-teal-100">
@@ -99,7 +120,6 @@
                     @endif
                 </div>
                 
-                <!-- Informasi -->
                 <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <p class="text-xs text-gray-400 uppercase tracking-wide">Nama Lengkap</p>
@@ -234,7 +254,7 @@
     </div>
     @endif
 
-    <!-- Form KRS Card (hanya tampil jika belum ada KRS atau status masih menunggu) -->
+    <!-- Form KRS Card -->
     @if(!$krs || $krs->status == 'menunggu')
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         <div class="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-white">
@@ -424,35 +444,90 @@
     <!-- Riwayat Akademik -->
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-            <h2 class="font-bold text-gray-800 flex items-center gap-2">
+            <div class="flex items-center gap-2">
                 <i class="fas fa-history text-teal-500"></i>
-                Riwayat Akademik
-            </h2>
-            <p class="text-sm text-gray-500">Daftar mata kuliah yang telah disetujui sebelumnya</p>
+                <h2 class="font-bold text-gray-800">Riwayat Akademik</h2>
+            </div>
+            <p class="text-sm text-gray-500">Daftar mata kuliah yang telah ditempuh</p>
         </div>
         <div class="p-6">
-            @if($riwayatKrs && $riwayatKrs->count() > 0)
+            @if($riwayatFinal && count($riwayatFinal) > 0)
                 <div class="space-y-4">
-                    @foreach($riwayatKrs as $riwayat)
+                    @foreach($riwayatFinal as $riwayat)
                         <div class="riwayat-item border border-gray-100 rounded-xl p-4">
                             <div class="flex flex-wrap items-center justify-between mb-3">
                                 <div>
-                                    <span class="font-semibold text-gray-800">Semester {{ $riwayat->semester }}</span>
-                                    <span class="text-xs text-gray-400 ml-2">{{ $riwayat->created_at->format('d F Y') }}</span>
+                                    <span class="font-semibold text-gray-800">
+                                        Semester {{ $riwayat['nomor_semester'] }} ({{ $riwayat['semester'] }})
+                                    </span>
+                                    <span class="text-xs text-gray-400 ml-2">{{ $riwayat['tahun'] }}</span>
+                                    @if(isset($riwayat['is_generated']) && $riwayat['is_generated'])
+                                        <span class="text-xs text-teal-500 ml-2 bg-teal-50 px-2 py-0.5 rounded-full">(Generated)</span>
+                                    @endif
+                                    @if(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                        <span class="badge-aktif">Semester Berjalan</span>
+                                    @endif
+                                    @if(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
+                                        <span class="badge-aktif">Semester Sebelumnya</span>
+                                    @endif
                                 </div>
-                                <span class="status-badge status-disetujui">
-                                    <i class="fas fa-check-circle"></i> Disetujui
-                                </span>
+                                <div class="flex items-center gap-3">
+                                    @if(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true && $riwayat['ipk'] > 0)
+                                        <span class="text-sm font-medium text-gray-600">IPK: {{ number_format($riwayat['ipk'], 2) }}</span>
+                                    @elseif(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                        <span class="text-sm font-medium text-amber-500">(Nilai belum keluar)</span>
+                                    @elseif(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
+                                        <span class="text-sm font-medium text-amber-500">(Nilai belum keluar)</span>
+                                    @elseif(isset($riwayat['status']) && $riwayat['status'] == 'ditolak')
+                                        <span class="text-sm font-medium text-red-500">Ditolak</span>
+                                    @endif
+                                    <span class="status-badge status-disetujui">
+                                        <i class="fas fa-check-circle"></i> 
+                                        @if(isset($riwayat['status']) && $riwayat['status'] == 'ditolak')
+                                            Ditolak
+                                        @elseif(isset($riwayat['status']) && $riwayat['status'] == 'menunggu')
+                                            Menunggu
+                                        @elseif(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true)
+                                            Lulus
+                                        @else
+                                            Berjalan
+                                        @endif
+                                    </span>
+                                </div>
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                @foreach($riwayat->matakuliahs as $mk)
-                                    <span class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">
-                                        {{ $mk->kode_mk }} - {{ $mk->nama_mk }}
+                                @foreach($riwayat['matakuliahs'] as $mk)
+                                    @php
+                                        $tampilkanNilai = false;
+                                        if (isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true) {
+                                            $tampilkanNilai = true;
+                                        }
+                                        if (isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true) {
+                                            $tampilkanNilai = false;
+                                        }
+                                        if (isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true) {
+                                            $tampilkanNilai = false;
+                                        }
+                                    @endphp
+                                    <span class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-2">
+                                        {{ $mk['kode_mk'] }} - {{ $mk['nama_mk'] }}
+                                        <span class="text-xs font-semibold">({{ $mk['sks'] }} SKS)</span>
+                                        @if($tampilkanNilai && isset($mk['nilai']))
+                                            <span class="nilai-badge nilai-{{ strtolower(str_replace('+', '-plus', str_replace('-', '-minus', $mk['nilai']))) }}">
+                                                {{ $mk['nilai'] }}
+                                            </span>
+                                        @elseif(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                            <span class="text-xs text-gray-400">(Nilai belum tersedia)</span>
+                                        @elseif(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
+                                            <span class="text-xs text-gray-400">(Nilai belum tersedia)</span>
+                                        @elseif(isset($riwayat['status']) && $riwayat['status'] == 'ditolak')
+                                            <span class="text-xs text-red-400">(Ditolak)</span>
+                                        @endif
                                     </span>
                                 @endforeach
                             </div>
                             <div class="mt-3 text-right">
-                                <span class="text-sm font-semibold text-teal-600">Total SKS: {{ $riwayat->total_sks }} SKS</span>
+                                <span class="text-sm font-semibold text-teal-600">Total SKS: {{ $riwayat['total_sks'] }} SKS</span>
                             </div>
                         </div>
                     @endforeach

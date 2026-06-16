@@ -111,7 +111,6 @@
         color: #bbb;
     }
     
-    /* Modal Edit */
     .edit-modal {
         display: none;
         position: fixed;
@@ -164,11 +163,39 @@
         transform: scale(1.02);
         box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.3);
     }
+    .nilai-badge {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 11px;
+    }
+    .nilai-a { background: #D1FAE5; color: #065F46; }
+    .nilai-a-minus { background: #D1FAE5; color: #065F46; }
+    .nilai-b-plus { background: #DBEAFE; color: #1E40AF; }
+    .nilai-b { background: #DBEAFE; color: #1E40AF; }
+    .nilai-b-minus { background: #FEF3C7; color: #92400E; }
+    .nilai-c-plus { background: #FEF3C7; color: #92400E; }
+    .nilai-c { background: #FEE2E2; color: #991B1B; }
+    .riwayat-item {
+        transition: all 0.2s ease;
+    }
+    .riwayat-item:hover {
+        background-color: #F8FAFC;
+    }
+    .badge-aktif {
+        background: #FEF3C7;
+        color: #D97706;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+    }
 </style>
 
 <div class="max-w-4xl mx-auto">
-    <!-- Header Card dengan Nama Mahasiswa (tanpa tombol back di atas) -->
     <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        <!-- Header -->
         <div class="bg-gradient-to-r from-teal-600 to-teal-500 px-6 py-5">
             <div class="flex items-center gap-4">
                 @if($krs->mahasiswa->foto_profil)
@@ -186,7 +213,6 @@
             </div>
         </div>
 
-        <!-- Body -->
         <div class="p-6 space-y-6">
             <!-- Informasi Akademik -->
             <div>
@@ -281,6 +307,100 @@
             </div>
             @endif
 
+            <!-- Riwayat Akademik (Untuk Dosen) -->
+            <div>
+                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                    <i class="fas fa-history text-teal-500"></i>
+                    Riwayat Akademik Mahasiswa
+                </h3>
+                @if(isset($riwayatFinal) && count($riwayatFinal) > 0)
+                    <div class="space-y-3">
+                        @foreach($riwayatFinal as $riwayat)
+                            <div class="riwayat-item border border-gray-100 rounded-xl p-4">
+                                <div class="flex flex-wrap items-center justify-between mb-3">
+                                    <div>
+                                        <span class="font-semibold text-gray-800">
+                                            Semester {{ $riwayat['nomor_semester'] }} ({{ $riwayat['semester'] }})
+                                        </span>
+                                        <span class="text-xs text-gray-400 ml-2">{{ $riwayat['tahun'] }}</span>
+                                        @if(isset($riwayat['is_generated']) && $riwayat['is_generated'])
+                                            <span class="text-xs text-teal-500 ml-2 bg-teal-50 px-2 py-0.5 rounded-full">(Generated)</span>
+                                        @endif
+                                        @if(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                            <span class="badge-aktif">Semester Berjalan</span>
+                                        @endif
+                                        @if(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
+                                            <span class="badge-aktif">Semester Sebelumnya</span>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        @if(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true && $riwayat['ipk'] > 0)
+                                            <span class="text-sm font-medium text-gray-600">IPK: {{ number_format($riwayat['ipk'], 2) }}</span>
+                                        @elseif(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                            <span class="text-sm font-medium text-amber-500">(Nilai belum keluar)</span>
+                                        @elseif(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
+                                            <span class="text-sm font-medium text-amber-500">(Nilai belum keluar)</span>
+                                        @endif
+                                        <span class="status-badge status-disetujui">
+                                            <i class="fas fa-check-circle"></i> 
+                                            @if(isset($riwayat['status']) && $riwayat['status'] == 'ditolak')
+                                                Ditolak
+                                            @elseif(isset($riwayat['status']) && $riwayat['status'] == 'menunggu')
+                                                Menunggu
+                                            @elseif(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true)
+                                                Lulus
+                                            @else
+                                                Berjalan
+                                            @endif
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    @foreach($riwayat['matakuliahs'] as $mk)
+                                        @php
+                                            $tampilkanNilai = false;
+                                            if (isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true) {
+                                                $tampilkanNilai = true;
+                                            }
+                                            if (isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true) {
+                                                $tampilkanNilai = false;
+                                            }
+                                            if (isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true) {
+                                                $tampilkanNilai = false;
+                                            }
+                                        @endphp
+                                        <span class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm flex items-center gap-2">
+                                            {{ $mk['kode_mk'] }} - {{ $mk['nama_mk'] }}
+                                            <span class="text-xs font-semibold">({{ $mk['sks'] }} SKS)</span>
+                                            @if($tampilkanNilai && isset($mk['nilai']))
+                                                <span class="nilai-badge nilai-{{ strtolower(str_replace('+', '-plus', str_replace('-', '-minus', $mk['nilai']))) }}">
+                                                    {{ $mk['nilai'] }}
+                                                </span>
+                                            @elseif(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                                <span class="text-xs text-gray-400">(Nilai belum tersedia)</span>
+                                            @elseif(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
+                                                <span class="text-xs text-gray-400">(Nilai belum tersedia)</span>
+                                            @elseif(isset($riwayat['status']) && $riwayat['status'] == 'ditolak')
+                                                <span class="text-xs text-red-400">(Ditolak)</span>
+                                            @endif
+                                        </span>
+                                    @endforeach
+                                </div>
+                                <div class="mt-2 text-right">
+                                    <span class="text-sm font-semibold text-teal-600">Total SKS: {{ $riwayat['total_sks'] }} SKS</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="text-center py-6 text-gray-400 bg-gray-50 rounded-xl">
+                        <i class="fas fa-inbox text-3xl mb-2"></i>
+                        <p>Belum ada riwayat akademik untuk semester sebelumnya</p>
+                        <p class="text-sm">Mahasiswa ini belum memiliki data semester sebelumnya</p>
+                    </div>
+                @endif
+            </div>
+
             <!-- Tombol Aksi -->
             <div class="pt-4 border-t border-gray-200">
                 @if($krs->status == 'menunggu')
@@ -310,7 +430,6 @@
                 @endif
             </div>
             
-            <!-- Tombol Kembali ke Dashboard (di bawah) -->
             <div class="pt-4 flex justify-center">
                 <a href="{{ route('dosen.dashboard') }}" class="inline-flex items-center gap-2 px-6 py-2.5 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition">
                     <i class="fas fa-arrow-left"></i> Kembali ke Dashboard
@@ -320,7 +439,7 @@
     </div>
 </div>
 
-<!-- Modal Edit Data Mahasiswa -->
+<!-- Modal Edit -->
 <div id="editModal" class="edit-modal" onclick="closeEditModalOnClick(event)">
     <div class="edit-modal-content">
         <div class="edit-modal-header">
@@ -386,7 +505,6 @@
 </div>
 
 <script>
-    // Image Modal
     function openImageModal(imageUrl) {
         const modal = document.getElementById('imageModal');
         const modalImg = document.getElementById('modalImage');
@@ -399,7 +517,6 @@
         document.body.style.overflow = '';
     }
     
-    // Edit Modal
     function openEditModal() {
         document.getElementById('editModal').classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -414,7 +531,6 @@
         }
     }
     
-    // ESC key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeImageModal();
