@@ -66,17 +66,33 @@ class KrsController extends Controller
         // Gabungkan riwayat dari database + generated
         $riwayatFinal = $this->gabungkanRiwayat($riwayatKrs, $riwayatGenerated);
         
-        // Hitung statistik
+        // ==== PERBAIKAN STATISTIK ====
         $totalSksDitempuh = 0;
         $totalMatkulDitempuh = 0;
+        $ipkList = [];
         
         foreach ($riwayatFinal as $r) {
-            $totalSksDitempuh += $r['total_sks'];
-            $totalMatkulDitempuh += count($r['matakuliahs']);
+            // Hanya semester yang selesai (ada nilai) yang dihitung
+            if (isset($r['is_semester_selesai']) && $r['is_semester_selesai'] === true) {
+                $totalSksDitempuh += $r['total_sks'];
+                $totalMatkulDitempuh += count($r['matakuliahs']);
+                if ($r['ipk'] > 0) {
+                    $ipkList[] = $r['ipk'];
+                }
+            }
         }
         
-        $totalPengajuan = $mahasiswa->krs()->count();
-        $ipkSementara = $this->hitungIpk($mahasiswa->id);
+        // Total pengajuan: nomor semester aktif + acak 0-2 (maks 14)
+        $nomorAktif = $selectedNomorSemester ?? $mahasiswa->nomor_semester ?? 1;
+        $tambahanAcak = rand(0, 2);
+        $totalPengajuan = min($nomorAktif + $tambahanAcak, 14);
+        if ($totalPengajuan < 1) $totalPengajuan = 1;
+        
+        // IPK sementara = rata-rata IPK semester selesai
+        $ipkSementara = 0;
+        if (count($ipkList) > 0) {
+            $ipkSementara = round(array_sum($ipkList) / count($ipkList), 2);
+        }
         
         return view('mahasiswa.dashboard', compact(
             'matakuliahs',
@@ -97,6 +113,7 @@ class KrsController extends Controller
 
     /**
      * Generate riwayat akademik untuk semester sebelumnya
+     * PERBAIKAN: semester sebelumnya (nomorSemesterAktif - 1) sekarang dianggap selesai (ada nilai)
      */
     private function generateRiwayatAkademik($nomorSemesterAktif, $mahasiswa)
     {
@@ -110,21 +127,9 @@ class KrsController extends Controller
             
             $matakuliahs = Matakuliah::where('semester', $jenisSemester)->get();
             
-            // *** LOGIKA YANG BENAR ***
-            // - Semester yang diinput (nomorSemesterAktif) = TIDAK ADA NILAI (aktif)
-            // - Semester sebelumnya (nomorSemesterAktif - 1) = TIDAK ADA NILAI (belum selesai)
-            // - Semester di bawahnya = ADA NILAI (sudah selesai)
-            //
-            // Contoh input semester 5:
-            // - Semester 1 = ADA NILAI (selesai)
-            // - Semester 2 = ADA NILAI (selesai)
-            // - Semester 3 = ADA NILAI (selesai)  <-- PERUBAHAN: seharusnya ADA karena sudah lewat
-            // - Semester 4 = TIDAK ADA NILAI (belum selesai, semester sebelumnya)
-            // - Semester 5 = TIDAK ADA NILAI (yang diinput)
-            
-            $isSemesterAktif = ($i == $nomorSemesterAktif); // Semester yang diinput = TIDAK ADA NILAI
-            $isSemesterSebelumnya = ($i == $nomorSemesterAktif - 1); // Semester sebelumnya = TIDAK ADA NILAI
-            $isSemesterSelesai = ($i < $nomorSemesterAktif - 1); // Semester di bawah sebelumnya = ADA NILAI
+            // PERBAIKAN: semua semester sebelum aktif dianggap selesai (ada nilai)
+            $isSemesterAktif = ($i == $nomorSemesterAktif);
+            $isSemesterSelesai = ($i <= $nomorSemesterAktif - 1);
             
             $matakuliahDenganNilai = [];
             
@@ -135,7 +140,6 @@ class KrsController extends Controller
                     'sks' => $mk->sks,
                 ];
                 
-                // Tampilkan nilai HANYA jika semester sudah selesai (i < nomorSemesterAktif - 1)
                 if ($isSemesterSelesai) {
                     $nilai = $this->generateNilaiRandom();
                     $dataMatkul['nilai'] = $nilai;
@@ -169,9 +173,9 @@ class KrsController extends Controller
                 'total_sks' => $totalSks,
                 'ipk' => $ipkSemester,
                 'is_generated' => true,
-                'is_semester_aktif' => $isSemesterAktif, // true = tidak ada nilai
-                'is_semester_sebelumnya' => $isSemesterSebelumnya, // true = tidak ada nilai
-                'is_semester_selesai' => $isSemesterSelesai // true = ada nilai
+                'is_semester_aktif' => $isSemesterAktif,
+                'is_semester_sebelumnya' => false, // tidak dipakai lagi
+                'is_semester_selesai' => $isSemesterSelesai
             ];
         }
         
@@ -180,6 +184,7 @@ class KrsController extends Controller
 
     /**
      * Gabungkan riwayat dari database dengan generated
+     * PERBAIKAN: semester yang baru disetujui dianggap aktif (tidak ada nilai)
      */
     private function gabungkanRiwayat($riwayatDb, $riwayatGenerated)
     {
@@ -194,34 +199,46 @@ class KrsController extends Controller
             }
         }
         
+        // Dapatkan nomor semester aktif (terbesar dari database)
+        $nomorSemesterAktif = !empty($nomorSemesterDb) ? max($nomorSemesterDb) : 0;
+        
         // Tambahkan riwayat dari database (SEMUA STATUS)
         foreach ($riwayatDb as $r) {
             $status = $r->status;
             $nomorSemester = $r->mahasiswa->nomor_semester ?? 0;
             
-            // Cek apakah semester ini sudah lewat dari semester aktif
-            // Jika ya, beri nilai default
-            $isSelesai = ($status != 'menunggu' && $status != 'ditolak');
+            // Semester aktif jika nomor sama dengan nomor terbesar dan statusnya menunggu/disetujui
+            $isSemesterAktif = ($nomorSemester == $nomorSemesterAktif && in_array($status, ['menunggu', 'disetujui']));
+            
+            // Semester selesai jika status disetujui dan bukan semester aktif
+            $isSelesai = ($status == 'disetujui' && !$isSemesterAktif);
             
             $result[] = [
                 'semester' => $r->semester,
                 'nomor_semester' => $nomorSemester,
                 'tahun' => $r->created_at->year,
                 'matakuliahs' => $r->matakuliahs->map(function ($mk) use ($status, $isSelesai) {
-                    return [
+                    $data = [
                         'kode_mk' => $mk->kode_mk,
                         'nama_mk' => $mk->nama_mk,
                         'sks' => $mk->sks,
-                        'nilai' => ($isSelesai && $status == 'disetujui') ? $this->generateNilaiRandom() : null,
-                        'bobot' => ($isSelesai && $status == 'disetujui') ? 3.50 : 0
                     ];
+                    if ($isSelesai) {
+                        $nilai = $this->generateNilaiRandom();
+                        $data['nilai'] = $nilai;
+                        $data['bobot'] = $this->konversiNilaiKeBobot($nilai);
+                    } else {
+                        $data['nilai'] = null;
+                        $data['bobot'] = 0;
+                    }
+                    return $data;
                 })->toArray(),
                 'total_sks' => $r->total_sks,
-                'ipk' => ($isSelesai && $status == 'disetujui') ? 3.50 : 0,
+                'ipk' => $isSelesai ? $this->hitungIpkSemester($r) : 0,
                 'is_generated' => false,
-                'is_semester_aktif' => ($status == 'menunggu'),
+                'is_semester_aktif' => $isSemesterAktif,
                 'is_semester_sebelumnya' => false,
-                'is_semester_selesai' => ($status == 'disetujui'),
+                'is_semester_selesai' => $isSelesai,
                 'status' => $status
             ];
         }
@@ -239,6 +256,24 @@ class KrsController extends Controller
         });
         
         return $result;
+    }
+
+    /**
+     * Hitung IPK untuk sebuah KRS (dengan nilai random)
+     * Dipakai untuk semester yang sudah disetujui dan bukan semester aktif
+     */
+    private function hitungIpkSemester($krs)
+    {
+        $totalBobot = 0;
+        $totalSks = 0;
+        foreach ($krs->matakuliahs as $mk) {
+            $totalSks += $mk->sks;
+            $nilai = $this->generateNilaiRandom();
+            $bobot = $this->konversiNilaiKeBobot($nilai);
+            $totalBobot += $mk->sks * $bobot;
+        }
+        if ($totalSks == 0) return 0;
+        return round($totalBobot / $totalSks, 2);
     }
 
     /**
@@ -436,13 +471,5 @@ class KrsController extends Controller
         $pdf->setPaper('A4', 'portrait');
         
         return $pdf->download('KRS_' . $mahasiswa->nim . '_' . $krs->semester . '.pdf');
-    }
-    
-    /**
-     * Hitung IPK sementara
-     */
-    private function hitungIpk($mahasiswaId)
-    {
-        return 3.50;
     }
 }

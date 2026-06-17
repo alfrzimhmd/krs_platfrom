@@ -43,23 +43,19 @@ class DosenController extends Controller implements HasMiddleware
             abort(403, 'Anda tidak berhak mengakses KRS ini.');
         }
         
-        // Generate riwayat akademik untuk mahasiswa ini
         $mahasiswa = $krs->mahasiswa;
         $nomorSemester = $mahasiswa->nomor_semester;
         $riwayatGenerated = [];
         
-        // Ambil riwayat dari database (SEMUA STATUS)
         $riwayatDb = $mahasiswa->krs()
             ->with('matakuliahs')
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Generate riwayat untuk semester sebelumnya
         if ($nomorSemester && $nomorSemester > 1) {
             $riwayatGenerated = $this->generateRiwayatAkademik($nomorSemester, $mahasiswa);
         }
         
-        // Gabungkan riwayat
         $riwayatFinal = $this->gabungkanRiwayat($riwayatDb, $riwayatGenerated);
         
         return view('dosen.detail_krs', compact('krs', 'riwayatFinal'));
@@ -79,12 +75,11 @@ class DosenController extends Controller implements HasMiddleware
             
             $matakuliahs = Matakuliah::where('semester', $jenisSemester)->get();
             
-            $matakuliahDenganNilai = [];
+            // semua semester sebelum aktif dianggap selesai (ada nilai)
+            $isSemesterAktif = ($i == $nomorSemesterAktif);
+            $isSemesterSelesai = ($i <= $nomorSemesterAktif - 1);
             
-            // LOGIKA YANG SAMA DENGAN KRS CONTROLLER
-            $isSemesterAktif = ($i == $nomorSemesterAktif); // TIDAK ADA NILAI
-            $isSemesterSebelumnya = ($i == $nomorSemesterAktif - 1); // TIDAK ADA NILAI
-            $isSemesterSelesai = ($i < $nomorSemesterAktif - 1); // ADA NILAI
+            $matakuliahDenganNilai = [];
             
             foreach ($matakuliahs as $mk) {
                 $dataMatkul = [
@@ -126,7 +121,7 @@ class DosenController extends Controller implements HasMiddleware
                 'ipk' => $ipkSemester,
                 'is_generated' => true,
                 'is_semester_aktif' => $isSemesterAktif,
-                'is_semester_sebelumnya' => $isSemesterSebelumnya,
+                'is_semester_sebelumnya' => false,
                 'is_semester_selesai' => $isSemesterSelesai
             ];
         }
@@ -136,6 +131,7 @@ class DosenController extends Controller implements HasMiddleware
 
     /**
      * Gabungkan riwayat dari database dengan generated
+     * PERBAIKAN: semester yang baru disetujui dianggap aktif (tidak ada nilai)
      */
     private function gabungkanRiwayat($riwayatDb, $riwayatGenerated)
     {
@@ -149,28 +145,39 @@ class DosenController extends Controller implements HasMiddleware
             }
         }
         
+        $nomorSemesterAktif = !empty($nomorSemesterDb) ? max($nomorSemesterDb) : 0;
+        
         foreach ($riwayatDb as $r) {
             $status = $r->status;
             $nomorSemester = $r->mahasiswa->nomor_semester ?? 0;
-            $isSelesai = ($status == 'disetujui');
+            
+            $isSemesterAktif = ($nomorSemester == $nomorSemesterAktif && in_array($status, ['menunggu', 'disetujui']));
+            $isSelesai = ($status == 'disetujui' && !$isSemesterAktif);
             
             $result[] = [
                 'semester' => $r->semester,
                 'nomor_semester' => $nomorSemester,
                 'tahun' => $r->created_at->year,
                 'matakuliahs' => $r->matakuliahs->map(function ($mk) use ($status, $isSelesai) {
-                    return [
+                    $data = [
                         'kode_mk' => $mk->kode_mk,
                         'nama_mk' => $mk->nama_mk,
                         'sks' => $mk->sks,
-                        'nilai' => ($isSelesai) ? $this->generateNilaiRandom() : null,
-                        'bobot' => ($isSelesai) ? 3.50 : 0
                     ];
+                    if ($isSelesai) {
+                        $nilai = $this->generateNilaiRandom();
+                        $data['nilai'] = $nilai;
+                        $data['bobot'] = $this->konversiNilaiKeBobot($nilai);
+                    } else {
+                        $data['nilai'] = null;
+                        $data['bobot'] = 0;
+                    }
+                    return $data;
                 })->toArray(),
                 'total_sks' => $r->total_sks,
-                'ipk' => ($isSelesai) ? 3.50 : 0,
+                'ipk' => $isSelesai ? $this->hitungIpkSemester($r) : 0,
                 'is_generated' => false,
-                'is_semester_aktif' => ($status == 'menunggu'),
+                'is_semester_aktif' => $isSemesterAktif,
                 'is_semester_sebelumnya' => false,
                 'is_semester_selesai' => $isSelesai,
                 'status' => $status
@@ -219,6 +226,24 @@ class DosenController extends Controller implements HasMiddleware
             'C' => 2.00,
         ];
         return $bobot[$nilai] ?? 3.00;
+    }
+
+    /**
+     * Hitung IPK untuk sebuah KRS (dengan nilai random)
+     * method baru untuk menghitung IPK semester dari KRS yang sudah disetujui
+     */
+    private function hitungIpkSemester($krs)
+    {
+        $totalBobot = 0;
+        $totalSks = 0;
+        foreach ($krs->matakuliahs as $mk) {
+            $totalSks += $mk->sks;
+            $nilai = $this->generateNilaiRandom();
+            $bobot = $this->konversiNilaiKeBobot($nilai);
+            $totalBobot += $mk->sks * $bobot;
+        }
+        if ($totalSks == 0) return 0;
+        return round($totalBobot / $totalSks, 2);
     }
 
     public function approveKrs($id)

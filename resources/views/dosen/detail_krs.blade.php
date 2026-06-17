@@ -191,6 +191,14 @@
         font-size: 11px;
         font-weight: 600;
     }
+    .badge-disetujui {
+        background: #D1FAE5;
+        color: #059669;
+    }
+    .badge-lulus {
+        background: #D1FAE5;
+        color: #059669;
+    }
 </style>
 
 <div class="max-w-4xl mx-auto">
@@ -341,14 +349,26 @@
                                         @elseif(isset($riwayat['is_semester_sebelumnya']) && $riwayat['is_semester_sebelumnya'] === true)
                                             <span class="text-sm font-medium text-amber-500">(Nilai belum keluar)</span>
                                         @endif
-                                        <span class="status-badge status-disetujui">
-                                            <i class="fas fa-check-circle"></i> 
+                                        <span class="status-badge 
+                                            @if(isset($riwayat['status']) && $riwayat['status'] == 'ditolak') bg-red-100 text-red-700
+                                            @elseif(isset($riwayat['status']) && $riwayat['status'] == 'menunggu') bg-amber-100 text-amber-700
+                                            @elseif(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true) bg-emerald-100 text-emerald-700
+                                            @else bg-gray-100 text-gray-600 @endif
+                                        ">
+                                            <i class="fas 
+                                                @if(isset($riwayat['status']) && $riwayat['status'] == 'ditolak') fa-times-circle
+                                                @elseif(isset($riwayat['status']) && $riwayat['status'] == 'menunggu') fa-hourglass-half
+                                                @elseif(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true) fa-check-circle
+                                                @else fa-clock @endif
+                                            "></i> 
                                             @if(isset($riwayat['status']) && $riwayat['status'] == 'ditolak')
                                                 Ditolak
                                             @elseif(isset($riwayat['status']) && $riwayat['status'] == 'menunggu')
                                                 Menunggu
                                             @elseif(isset($riwayat['is_semester_selesai']) && $riwayat['is_semester_selesai'] === true)
                                                 Lulus
+                                            @elseif(isset($riwayat['is_semester_aktif']) && $riwayat['is_semester_aktif'] === true)
+                                                Disetujui
                                             @else
                                                 Berjalan
                                             @endif
